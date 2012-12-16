@@ -37,9 +37,8 @@ radius = 0.1
 
 while w.is_open():
     for person in kinect.people.values():
-        person.head
 
-        hue = math.sin(round(head.position[2]/100))
+        hue = math.sin(round(person.head.position[2]/100))
 
         x_pos = (person.right_hand.point[0]+person.left_hand.point[0])/2.0+w.width/2.0
         y_pos = (person.right_hand.point[1]+person.left_hand.point[1])/2.0+w.height/2.0
