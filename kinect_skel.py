@@ -13,11 +13,22 @@ as they are tracked.
 
 from openni import *
 
+class PosConfNode:
+    def __init__(self, pos, conf):
+        self.point = pos
+        self.confidence = conf
+
+
+class Person:
+    def __init__(self, ident):
+        self.identifier = ident
+        self.left_hand = PosConfNode((0,0,0),0)
+        self.right_hand = PosConfNode((0,0,0),0)
+        self.head = PosConfNode((0,0,0),0)
+
 class Kinect:
     def __init__(self):
-        self.head_pos_conf = ((0,0,0), 0)
-        self.hand_left_pos_conf = ((0,0,0), 0)
-        self.hand_right_pos_conf = ((0,0,0), 0)
+        self.people = dict()
 
         # Pose to use to calibrate the user
         self.pose_to_use = 'Psi'
@@ -50,6 +61,7 @@ class Kinect:
     def new_user(self, src, id):
         print "1/4 User {} detected. Looking for pose..." .format(id)
         self.pose_cap.start_detection(self.pose_to_use, id)
+        self.people[id] = Person(id)
 
     def pose_detected(self, src, pose, id):
         print "2/4 Detected pose {} on user {}. Requesting calibration..." .format(pose,id)
@@ -69,8 +81,7 @@ class Kinect:
 
     def lost_user(self, src, id):
         print "--- User {} lost." .format(id)
-
-
+        del self.people[id]
 
     def refresh(self):
         # Update to next frame
@@ -79,18 +90,15 @@ class Kinect:
         # Extract head position of each tracked user
         for id in self.user.users:
             if self.skel_cap.is_tracking(id):
-                head = self.skel_cap.get_joint_position(id, SKEL_HEAD)
-                hand_left = self.skel_cap.get_joint_position(id, SKEL_LEFT_HAND)
-                hand_right = self.skel_cap.get_joint_position(id, SKEL_RIGHT_HAND)
-                print "  {}: hand_left at ({loc[0]}, {loc[1]}, {loc[2]}) [{conf}]" .format(id, loc=hand_left.point, conf=hand_left.confidence)
-                
-                self.head_pos = (head.point, head.confidence)
-                self.hand_left_pos = (head.point, head.confidence)
-                self.head_pos = (head.point, head.confidence)
+                # Point , Confidence
+                joint = self.skel_cap.get_joint_position(id, SKEL_HEAD)
+                self.people[id].head = joint
 
-                self.head_pos_conf = (head.point, head.confidence)
-                self.hand_left_pos_conf = (hand_left.point, hand_left.confidence)
-                self.hand_right_pos_conf = (hand_right.point, hand_right.confidence)
+                joint = self.skel_cap.get_joint_position(id, SKEL_LEFT_HAND)
+                self.people[id].right_hand = joint
 
-    def get_pos_from_window(self, window):
-        return self.head_pos_conf, self.hand_left_pos_conf, self.hand_right_pos_conf
+                joint = self.skel_cap.get_joint_position(id, SKEL_RIGHT_HAND)
+                self.people[id].left_hand = joint
+
+    def get_people(self):
+        return self.people
