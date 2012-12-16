@@ -40,7 +40,7 @@ while w.is_open():
 
         hue = math.sin(round(person.head.point[2]/100))
 
-        x_pos = w.width-(person.right_hand.point[0]+person.left_hand.point[0])/2.0+w.width/2.0
+        x_pos = -(person.right_hand.point[0]+person.left_hand.point[0])/2.0+w.width/2.0
         y_pos = (person.right_hand.point[1]+person.left_hand.point[1])/2.0+w.height/2.0
         k = math.sin(round(person.head.point[0]/50))+0.01
         radius = math.sqrt((person.left_hand.point[0] - person.right_hand.point[0])**2 + (person.left_hand.point[1] - person.right_hand.point[1])**2)*0.002
