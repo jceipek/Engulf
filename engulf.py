@@ -1,8 +1,9 @@
 import pyshiva as ps
 import random
 import math
+import colorsys
 
-kinect_support = False
+kinect_support = True
 kinect = None
 
 
@@ -65,10 +66,11 @@ class Player(ps.Group):
         #                  stroke_color=(1,1,1,1), stroke_thickness=2)
         self.border = ps.Circle(0,0,50,color=(0,0,0,0),stroke_color=(1,1,1,1),stroke_thickness=2)
         self.max_border = ps.Circle(0,0,50,color=(0,0,0,0),stroke_color=(1,1,1,0.1),stroke_thickness=4)
-        self.add(self.max_border)
-        self.add(self.border)
+
         self.contents = ps.Group(0,0)
         self.add(self.contents)
+        self.add(self.max_border)
+        self.add(self.border)
         self.radius = 30
         self.curr_max_radius = 30
         self.min_radius = 20
@@ -76,6 +78,9 @@ class Player(ps.Group):
             self.add_unit()
         self.world = world
         self.goal = Vector(0,0)
+        self.type = None
+
+        self.lock_factor = 0.4
 
     def add_unit(self):
         if len(self.contents) < 100:
@@ -103,7 +108,7 @@ class Player(ps.Group):
         self.radius = min(self.curr_max_radius, self.radius)
 
         #todo: control with kinect
-        self.radius = self.curr_max_radius/2
+        #self.radius = self.curr_max_radius/2
 
         self.border.radius = self.radius+5
         self.max_border.radius = self.curr_max_radius+5
@@ -111,6 +116,14 @@ class Player(ps.Group):
         for (i,c) in enumerate(self.contents):
             c.x = self.radius*math.cos(k*(t*10+i))*math.sin(t+i)
             c.y = self.radius*math.sin(k*(t*10+i))*math.sin(t+i)
+
+        if self.is_locked():
+            self.border.color.values = (0.5,0.2,0.2,0.7)
+        else:
+            self.border.color.values = (0.2,0.2,0.2,0)
+
+    def is_locked(self):
+        return self.radius/self.curr_max_radius < self.lock_factor and self.curr_max_radius > self.min_radius*1.5
 
     def found_food(self):
         self.curr_max_radius += 5
@@ -123,7 +136,11 @@ class Player(ps.Group):
         self.remove_unit()
 
     def set_radius(self,value):
-        self.radius = max(min(value,self.curr_max_radius), self.min_radius)
+        self.radius = max(min(self.curr_max_radius*(1-min(value,1)),self.curr_max_radius), self.min_radius)
+
+    def set_color(self, col):
+        for c in self.contents:
+            c.color.values = col
 
 
 class Enemy(ps.Circle):
@@ -136,7 +153,7 @@ class Enemy(ps.Circle):
         self.world = world
         self.goal = Vector(0,0)
         self.acceleration = Vector(0,0)
-        self.terminal_accel = 5
+        self.terminal_accel = 10
         self.accel_factor = 0.2
         self.accel_factor = random.random()
 
@@ -144,17 +161,19 @@ class Enemy(ps.Circle):
 
         self.goal.x = self.world.player.x
         self.goal.y = self.world.player.y
+
+        speed_factor = 1-self.world.player.radius/self.world.player.curr_max_radius + self.world.player.curr_max_radius*2
         #for a in avoid:
         #   if a != self:
         #       self.acc_x += distance(a.x,a.y,self.x,self.y)*0.1
         curr = Vector(self.x, self.y)
         d =  self.goal-curr
-        self.acceleration += d.dir()*self.accel_factor
+        self.acceleration += d.dir()*self.accel_factor #*speed_factor
         #scale = 10
         #curr += d.dir()*dt*scale*(d.mag()*0.1)
         #self.x, self.y = curr
 
-        if self.acceleration.mag() > self.terminal_accel:
+        if self.acceleration.mag() > self.terminal_accel+5: #*self.world.player.curr_max_radius/300:
             self.acceleration = self.acceleration.dir()*self.terminal_accel
 
         if self.x < 0 and self.acceleration.x<0:
@@ -175,10 +194,10 @@ class Enemy(ps.Circle):
         nearness = curr_pos - player_pos
         if nearness.mag() < self.radius+player.radius:
             player.hit_enemy()
-            #self.world.window.remove(self)
 
 class Food(ps.Group):
     def __init__(self, world):
+
         self.world = world
         self.radius = 5
         x = random.randint(int(world.window.width*0.05),int(world.window.width*0.95))
@@ -189,6 +208,16 @@ class Food(ps.Group):
                             color=(0,1,0,1))
         self.call_to_action = ps.Rect(x=-self.radius*2,y=-self.radius*2,width=20,height=20,
                             color=(0,0,0,0),stroke_color=(0,1,0,1), stroke_thickness=1)
+
+        if random.random()>0.5:
+            self.rect.color.values = colorsys.hsv_to_rgb(0.9,1,1) # Blue
+            self.call_to_action.stroke_color.values = colorsys.hsv_to_rgb(0.9,1,1)
+            self.type = "B"
+        else:
+            self.rect.color.values = colorsys.hsv_to_rgb(0.3,1,1) # Green
+            self.call_to_action.stroke_color.values = colorsys.hsv_to_rgb(0.3,1,1)
+            self.type = "G"
+
         self.add(self.rect)
         self.add(self.call_to_action)
         self.remove_me = False
@@ -209,10 +238,9 @@ class Food(ps.Group):
         player_pos = Vector(player.x, player.y)
         curr_pos = Vector(self.x, self.y)
         nearness = curr_pos - player_pos
-        if nearness.mag() < self.radius+player.radius and not self.remove_me:
+        if nearness.mag() < self.radius+player.radius and not self.remove_me and self.type == self.world.player.type and not player.is_locked():
             self.color = (0,0,1)
             player.found_food()
-            #self.world.add_new_food()
             self.remove_me = True
 
 class World:
@@ -247,35 +275,75 @@ for i in range(10):
 for i in range(3):
     world.add_new_food()
 
+sat = 0.9
+brt = 0.8
+
+person = None
+is_paused = True
 while window.is_open():
     t = window.s_since_refresh()
     
     x,y = (0,0)
+    hue = 0
     if not kinect:
         x,y = ps.get_mouse_pos()
     else:
-        for person in kinect.people.values():
+        if person in kinect.people.values():
             hue = math.sin(round(person.head.point[2]/100))
 
-            x = -(person.right_hand.point[0]+person.left_hand.point[0])/2.0-window.width/2.0
-            y = (person.right_hand.point[1]+person.left_hand.point[1])/2.0+window.height/2.0
+            #x = -(person.right_hand.point[0]+person.left_hand.point[0])/2.0#-window.width/2.0
+            #y = (person.right_hand.point[1]+person.left_hand.point[1])/2.0+window.height/2.0
             #k = math.sin(round(person.head.point[0]/50))+0.01
-            radius = math.sqrt((person.left_hand.point[0] - person.right_hand.point[0])**2 + (person.left_hand.point[1] - person.right_hand.point[1])**2)*0.002
+            #radius = math.sqrt((person.left_hand.point[0] - person.right_hand.point[0])**2 + (person.left_hand.point[1] - person.right_hand.point[1])**2)*0.002
+            
+            radius = person.right_hand.point[2]
+            #print radius
+            raw_axis_max = 910.0
+            raw_axis_min = 1250.0
+            radius = (world.player.min_radius/world.player.curr_max_radius+1)/(raw_axis_min-raw_axis_max)*(radius-raw_axis_max)
+            #print 'adjusted',radius
             world.player.set_radius(radius)
+            x = -person.right_hand.point[0]*2.0+window.width/2.0
+            y =person.right_hand.point[1]*2.0+window.height/2.0
+
+            hue = person.left_hand.point[2]
+            hue = 1/(raw_axis_min-raw_axis_max)*(hue-raw_axis_max)
+
+            #hue = abs(math.sin(round(person.left_hand.point[2]/100)))
+            if hue < 0.7:
+                hue = 0.9
+                world.player.type = "B"
+            else:
+                hue = 0.3
+                world.player.type = "G"
+
+            world.player.set_color(colorsys.hsv_to_rgb(hue,1,1))
+
+        else:
+            if len(kinect.people) > 0:
+                person = kinect.people.values()[0]
+                is_paused = False
+            else:
+                is_paused = True
+
+        #self.rect.color.values = colorsys.hsv_to_rgb(0.6,1,1) # Blue
+        #self.rect.color.values = colorsys.hsv_to_rgb(0.3,1,1) # Green
+        #self.rect.color.values = colorsys.hsv_to_rgb(0.1,1,1) # Orange
 
     world.player.goal.x = x
     world.player.goal.y = y
 
-    to_remove = list()
-    for c in window:
-        c.simulate(t)
-    for e in world.food:
-        if e.remove_me:
-            to_remove.append(e)
-    for e in to_remove:
-        world.add_new_food()
-        window.remove(e)
-        world.food.remove(e)
+    if not is_paused:
+        to_remove = list()
+        for c in window:
+            c.simulate(t)
+        for e in world.food:
+            if e.remove_me:
+                to_remove.append(e)
+        for e in to_remove:
+            world.add_new_food()
+            window.remove(e)
+            world.food.remove(e)
 
     if kinect:
         kinect.refresh()
