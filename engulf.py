@@ -3,9 +3,8 @@ import random
 import math
 import colorsys
 
-kinect_support = True
+kinect_support = False
 kinect = None
-
 
 if kinect_support:
     import openni
@@ -279,7 +278,13 @@ sat = 0.9
 brt = 0.8
 
 person = None
-is_paused = True
+is_paused = False
+
+color_switch_time = window.s_since_open()
+pause_time = window.s_since_open()
+
+if kinect:
+    is_paused = True
 while window.is_open():
     t = window.s_since_refresh()
     
@@ -287,6 +292,20 @@ while window.is_open():
     hue = 0
     if not kinect:
         x,y = ps.get_mouse_pos()
+        hue = 0.3
+        if window.s_since_open() - color_switch_time < 3:
+            hue = 0.9
+            world.player.type = "B"
+        elif window.s_since_open() - color_switch_time < 6:
+            hue = 0.3
+            world.player.type = "G"
+        else:
+            color_switch_time = window.s_since_open()
+        world.player.set_color(colorsys.hsv_to_rgb(hue,1,1))
+        world.player.radius = world.player.curr_max_radius*0.7
+        #if window.s_since_open() - pause_time > 30:
+        #    is_paused = True
+
     else:
         if person in kinect.people.values():
             hue = math.sin(round(person.head.point[2]/100))
