@@ -1,14 +1,36 @@
 #!/usr/bin/python
-## The equivalent of:
-##  "Working with the Skeleton"
-## in the OpenNI user guide.
 
 """
-This shows how to identify when a new user is detected, look for a pose for
-that user, calibrate the users when they are in the pose, and track them.
+Copyright (c) 2012 Julian Ceipek.
+Heavily based on jmendeth's PyOpenNI skeleton.py example.
 
-Specifically, it prints out the location of the users' head,
-as they are tracked.
+------------------------------------------------------------------------------
+This file is part of Engulf.
+
+Engulf is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+Engulf is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Engulf.  If not, see <http://www.gnu.org/licenses/>.
+------------------------------------------------------------------------------
+
+An object-oriented adaptation of jmendeth's PyOpenNI skeleton.py example
+for easy integration with PyShiva.
+
+Usage:
+k = Kinect() # Create a new connection to the Kinect for skeleton tracking
+
+k.refresh() # Call this in the main application loop
+
+k.people # A dictionary of ids to Person objects that each contain skeletal information.
+
 """
 
 from openni import *
